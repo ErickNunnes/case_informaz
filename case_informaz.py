@@ -3,22 +3,7 @@ import sys
 from datetime import datetime
 
 # ======================================
-# 1. VERIFICAÇÃO DE DEPENDÊNCIAS
-# ======================================
-def verificar_dependencias():
-    """Verifica se todas as dependências estão instaladas corretamente"""
-    try:
-        # Testa a importação do pandas e openpyxl
-        pd.read_excel('test.xlsx')  # Teste simbólico
-    except ImportError as e:
-        print(f"ERRO: {e}\nInstale as dependências com:\n\tpip3 install pandas openpyxl --user")
-        sys.exit(1)
-    except FileNotFoundError:
-        # Esperado - apenas testando a importação
-        pass
-
-# ======================================
-# 2. CARREGAMENTO DE DADOS
+# 1. CARREGAMENTO DE DADOS
 # ======================================
 def carregar_dados():
     """Carrega todos os dados das planilhas Excel"""
@@ -70,7 +55,7 @@ def carregar_dados():
         sys.exit(1)
 
 # ======================================
-# 3. PRÉ-PROCESSAMENTO
+# 2. PRÉ-PROCESSAMENTO
 # ======================================
 def preprocessar_dados(dfs):
     """Prepara os dados para análise"""
@@ -90,7 +75,7 @@ def preprocessar_dados(dfs):
         sys.exit(1)
 
 # ======================================
-# 4. CÁLCULO DAS MÉTRICAS
+# 3. CÁLCULO DAS MÉTRICAS
 # ======================================
 def calcular_metricas(dfs):
     """Calcula todas as métricas requeridas"""
@@ -186,7 +171,7 @@ def calcular_metricas(dfs):
         sys.exit(1)
 
 # ======================================
-# 5. EXPORTAÇÃO DOS RESULTADOS
+# 4. EXPORTAÇÃO DOS RESULTADOS
 # ======================================
 def exportar_resultados(metricas):
     """Exporta os resultados para Excel"""
@@ -214,23 +199,20 @@ def exportar_resultados(metricas):
 # ======================================
 if __name__ == "__main__":
     print("Iniciando processamento...")
-    
-    # 1. Verificar dependências
-    verificar_dependencias()
-    
-    # 2. Carregar dados
+
+    # 1. Carregar dados
     print("\nCarregando dados...")
     dados = carregar_dados()
     
-    # 3. Pré-processamento
+    # 2. Pré-processamento
     print("Preparando dados para análise...")
     dados = preprocessar_dados(dados)
     
-    # 4. Cálculo das métricas
+    # 3. Cálculo das métricas
     print("Calculando métricas...")
     resultados = calcular_metricas(dados)
     
-    # 5. Exportação
+    # 4. Exportação
     print("Exportando resultados...")
     exportar_resultados(resultados)
     
