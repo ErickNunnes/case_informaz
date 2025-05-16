@@ -2,11 +2,9 @@ import pandas as pd
 import sys
 from datetime import datetime
 
-# ======================================
+
 # 1. CARREGAMENTO DE DADOS
-# ======================================
 def carregar_dados():
-    """Carrega todos os dados das planilhas Excel"""
     file_path = 'Case_Infomaz_Base_de_Dados.xlsx'
     
     try:
@@ -20,7 +18,7 @@ def carregar_dados():
             'vendas': pd.read_excel(
                 file_path,
                 sheet_name='Transações Vendas',
-                header=1,  # Cabeçalho na linha 3
+                header=1,
                 usecols=['ID NOTA', 'DATA NOTA', 'VALOR NOTA', 'VALOR ITEM', 'QTD ITEM', 'ID PRODUTO', 'ID CLIENTE']
             ),
             'estoque': pd.read_excel(
@@ -42,23 +40,15 @@ def carregar_dados():
                 usecols=['ID FORNECEDOR', 'NOME FORNECEDOR', 'DATA CADASTRO']
             )
         }
-        
-        # Debug: verificar colunas carregadas
-        print("\nColunas carregadas com sucesso em cada planilha:")
-        for nome, df in dfs.items():
-            print(f"{nome.upper()}: {list(df.columns)}")
-            
+       
         return dfs
         
     except Exception as e:
         print(f"ERRO AO LER ARQUIVO EXCEL: {str(e)}")
         sys.exit(1)
 
-# ======================================
 # 2. PRÉ-PROCESSAMENTO
-# ======================================
 def preprocessar_dados(dfs):
-    """Prepara os dados para análise"""
     try:
         # Converter datas
         dfs['vendas']['DATA NOTA'] = pd.to_datetime(dfs['vendas']['DATA NOTA'])
@@ -74,11 +64,8 @@ def preprocessar_dados(dfs):
         print(f"ERRO NO PRÉ-PROCESSAMENTO: {str(e)}")
         sys.exit(1)
 
-# ======================================
 # 3. CÁLCULO DAS MÉTRICAS
-# ======================================
 def calcular_metricas(dfs):
-    """Calcula todas as métricas requeridas"""
     try:
         metricas = {}
         
@@ -87,29 +74,21 @@ def calcular_metricas(dfs):
         metricas['m1_total_categoria'] = merged_vendas.groupby('CATEGORIA')['VALOR ITEM'].sum().reset_index()
         
         # Métrica 2: Margem por produto
-        # Primeiro obtemos o valor médio por produto das vendas
         valor_por_produto = dfs['vendas'].groupby('ID PRODUTO')['VALOR ITEM'].mean().reset_index()
-        
-        # Merge produtos com estoque (usando ID_ESTOQUE)
         merged_prod_estoque = pd.merge(dfs['produtos'], dfs['estoque'], on='ID ESTOQUE', how='left')
-        
-        # Agora merge com os valores médios
         merged_estoque = pd.merge(merged_prod_estoque, valor_por_produto, on='ID PRODUTO', how='left')
-        
-        # Calculamos a margem
         merged_estoque['Custo Unitário'] = merged_estoque['VALOR ESTOQUE'] / merged_estoque['QTD ESTOQUE']
         merged_estoque['Margem'] = merged_estoque['VALOR ITEM'] - merged_estoque['Custo Unitário']
         metricas['m2_margem'] = merged_estoque[['NOME PRODUTO', 'Margem']].dropna()
         
-        # Métrica 3: Ranking clientes (mantido igual)
+        # Métrica 3: Ranking clientes
         metricas['m3_ranking_clientes'] = (dfs['vendas']
             .groupby(['ID CLIENTE', 'Mês/Ano'])['QTD ITEM']
             .sum()
             .reset_index()
             .sort_values(['Mês/Ano', 'QTD ITEM'], ascending=[True, False]))
         
-        # Métrica 4: Ranking fornecedores (ajustado)
-        # Primeiro merge estoque com produtos para obter ID_PRODUTO
+        # Métrica 4: Ranking fornecedores
         merged_fornecedores = pd.merge(dfs['estoque'], dfs['produtos'], on='ID ESTOQUE', how='left')
         metricas['m4_ranking_fornecedores'] = (merged_fornecedores
             .groupby(['ID FORNECEDOR', 'Mês/Ano'])['QTD ESTOQUE']
@@ -117,14 +96,14 @@ def calcular_metricas(dfs):
             .reset_index()
             .sort_values(['Mês/Ano', 'QTD ESTOQUE'], ascending=[True, False]))
         
-        # Métrica 5: Produtos mais vendidos (mantido igual)
+        # Métrica 5: Produtos mais vendidos
         metricas['m5_produtos_vendidos'] = (dfs['vendas']
             .groupby(['ID PRODUTO', 'Mês/Ano'])['QTD ITEM']
             .sum()
             .reset_index()
             .sort_values(['Mês/Ano', 'QTD ITEM'], ascending=[True, False]))
         
-        # Métrica 6: Produtos por valor (mantido igual)
+        # Métrica 6: Produtos por valor
         dfs['vendas']['Valor Total'] = dfs['vendas']['QTD ITEM'] * dfs['vendas']['VALOR ITEM']
         metricas['m6_produtos_valor'] = (dfs['vendas']
             .groupby(['ID PRODUTO', 'Mês/Ano'])['Valor Total']
@@ -132,27 +111,26 @@ def calcular_metricas(dfs):
             .reset_index()
             .sort_values(['Mês/Ano', 'Valor Total'], ascending=[True, False]))
         
-        # Métrica 7: Média por categoria (mantido igual)
+        # Métrica 7: Média por categoria
         metricas['m7_media_categoria'] = (merged_vendas
             .groupby(['CATEGORIA', 'Mês/Ano'])['VALOR ITEM']
             .mean()
             .reset_index())
         
-        # Métrica 8: Margem por categoria (usando merged_estoque corrigido)
+        # Métrica 8: Margem por categoria
         metricas['m8_margem_categoria'] = (merged_estoque
             .groupby('CATEGORIA')['Margem']
             .sum()
             .reset_index()
             .sort_values('Margem', ascending=False))
         
-        # Métrica 9: Produtos por cliente (mantido igual)
+        # Métrica 9: Produtos por cliente
         metricas['m9_produtos_cliente'] = (pd.merge(dfs['vendas'], dfs['produtos'], on='ID PRODUTO')
             [['ID CLIENTE', 'NOME PRODUTO']]
             .drop_duplicates()
             .sort_values('ID CLIENTE'))
         
-        # Métrica 10: Ranking estoque (ajustado)
-        # Merge estoque com produtos para obter ID_PRODUTO
+        # Métrica 10: Ranking estoque
         merged_estoque_prod = pd.merge(dfs['estoque'], dfs['produtos'], on='ID ESTOQUE', how='left')
         metricas['m10_ranking_estoque'] = (merged_estoque_prod
             .groupby('ID PRODUTO')['QTD ESTOQUE']
@@ -170,11 +148,8 @@ def calcular_metricas(dfs):
         print("Estoque:", dfs['estoque'].columns.tolist())
         sys.exit(1)
 
-# ======================================
 # 4. EXPORTAÇÃO DOS RESULTADOS
-# ======================================
 def exportar_resultados(metricas):
-    """Exporta os resultados para Excel"""
     try:
         with pd.ExcelWriter('Resultados_Infomaz.xlsx') as writer:
             metricas['m1_total_categoria'].to_excel(writer, sheet_name='Vendas_Categoria', index=False)
@@ -194,9 +169,7 @@ def exportar_resultados(metricas):
         print(f"ERRO NA EXPORTAÇÃO: {str(e)}")
         sys.exit(1)
 
-# ======================================
-# EXECUÇÃO PRINCIPAL
-# ======================================
+
 if __name__ == "__main__":
     print("Iniciando processamento...")
 
